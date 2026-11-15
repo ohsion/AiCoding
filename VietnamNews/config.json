@@ -1,0 +1,42 @@
+{
+  "ai_model": "gemini-4-argon",
+  "available_models": [
+    "gemini-4-argon",
+    "gemini-3.8-flash",
+    "gemini-3.1-pro-preview",
+    "gemini-3-flash-preview",
+    "gemini-3.5-flash"
+  ],
+  "news_sources": [
+    {
+      "source": "VN익스프레스 (속보)",
+      "category": "latest",
+      "category_ko": "속보·종합",
+      "url": "https://vnexpress.net/rss/tin-moi-nhat.rss"
+    },
+    {
+      "source": "VN익스프레스 (경제)",
+      "category": "economy",
+      "category_ko": "경제·비즈니스",
+      "url": "https://vnexpress.net/rss/kinh-doanh.rss"
+    },
+    {
+      "source": "뚜오이째 (사회)",
+      "category": "society",
+      "category_ko": "사회·로컬",
+      "url": "https://tuoitre.vn/rss/thoi-su.rss"
+    },
+    {
+      "source": "VN익스프레스 (IT/과학)",
+      "category": "tech",
+      "category_ko": "IT·과학",
+      "url": "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss"
+    },
+    {
+      "source": "뚜오이째 (문화)",
+      "category": "culture",
+      "category_ko": "문화·라이프",
+      "url": "https://tuoitre.vn/rss/van-hoa.rss"
+    }
+  ]
+}
