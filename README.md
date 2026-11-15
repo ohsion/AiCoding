@@ -21,7 +21,11 @@ Visual Studio Code와 **Google Gemini MCP (`@houtini/gemini-mcp`)**를 연동하
   - 언론사명(`VN익스프레스`, `뚜오이째`, `탄니엔`), 주요 지역명(`하노이`, `껀터`, `달랏`, `람동`, `꽝찌` 등) 및 영문 병기 문구를 자연스러운 한글 표현으로 정제
   - 뉴스 카드에서 외국어 원문 노출을 제거하고 제목·요약·언론사·브리핑 전 영역을 한글로만 깔끔하게 표시
 
-### 3. 백엔드 및 REST API (`VietnamNews/app.py`, `VietnamNews/mcp_client.py`)
+### 3. 개인정보 및 민감 경로/API Key 분리 보안 적용
+- 소스 코드 내 하드코딩된 로컬 계정 경로 및 내부 설정 파일 경로 제거 (`shutil.which` 및 `os.path.expanduser("~")` 동적 탐색 적용)
+- API Key는 환경 변수(`GEMINI_API_KEY`) 또는 로컬 `.env` 파일(Git 추적 제외)을 통해 안전하게 로드하도록 구성
+
+### 4. 백엔드 및 REST API (`VietnamNews/app.py`, `VietnamNews/mcp_client.py`)
 - `GET /` : 메인 웹 대시보드 페이지 렌더링
 - `GET /api/news` : 한글 번역된 최신 뉴스 목록, AI 브리핑, MCP 상태, 현재 설정 정보 반환 (`?refresh=1`로 강제 갱신 지원)
 - `GET /api/config` : 현재 설정된 AI 모델 및 뉴스 수집 사이트 목록(`config.json`) 조회
@@ -29,7 +33,7 @@ Visual Studio Code와 **Google Gemini MCP (`@houtini/gemini-mcp`)**를 연동하
 - `POST /api/refresh` : 뉴스 피드 및 브리핑 강제 갱신
 - `GET /api/mcp-status` : Gemini MCP 서버 실시간 연결 상태 및 활성 모델 정보 반환
 
-### 4. 프론트엔드 웹 대시보드 (`templates/index.html`, `static/style.css`, `static/app.js`)
+### 5. 프론트엔드 웹 대시보드 (`templates/index.html`, `static/style.css`, `static/app.js`)
 - **상단 헤더**: Gemini MCP 실시간 연결 상태 배지 + `⚙️ 설정` 버튼 + `↻ 실시간 뉴스 새로고침` 버튼
 - **AI 핵심 브리핑 배너**: 현재 설정된 AI 모델 표시 및 오늘의 베트남 핵심 뉴스 브리핑 제공
 - **카테고리 탭 및 실시간 한글 검색**: 분야별 즉시 필터링 및 한글 키워드 검색
@@ -60,7 +64,8 @@ AiCoding/
 ## 🚀 실행 방법
 
 ```bash
-cd /home/zerohs/GitHub/AiCoding/VietnamNews
+cd VietnamNews
+export GEMINI_API_KEY="your-gemini-api-key"
 python3 app.py
 ```
 

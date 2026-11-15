@@ -6,21 +6,40 @@ Supports configurable AI model & news site URLs (RSS or web pages),
 and translates all displayed news content into Korean (한글).
 """
 
+import glob
+import html
 import json
 import os
 import re
-import html
+import shutil
 import subprocess
-import urllib.request
 import urllib.parse
+import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-MCP_COMMAND = "/home/zerohs/.nvm/versions/node/v24.22.1/bin/gemini-mcp"
-NODE_BIN_DIR = "/home/zerohs/.nvm/versions/node/v24.22.1/bin"
+
+
+def resolve_mcp_command():
+    """Dynamically locate gemini-mcp and node bin directory without hardcoded user paths."""
+    which_cmd = shutil.which("gemini-mcp")
+    if which_cmd:
+        return which_cmd, os.path.dirname(which_cmd)
+
+    nvm_candidates = sorted(
+        glob.glob(os.path.expanduser("~/.nvm/versions/node/*/bin/gemini-mcp")),
+        reverse=True,
+    )
+    if nvm_candidates:
+        return nvm_candidates[0], os.path.dirname(nvm_candidates[0])
+
+    return "gemini-mcp", ""
+
+
+MCP_COMMAND, NODE_BIN_DIR = resolve_mcp_command()
 
 DEFAULT_CONFIG = {
     "ai_model": "gemini-4-argon",
@@ -131,7 +150,6 @@ def polish_korean_text(text: str) -> str:
     if not text:
         return ""
     text = html.unescape(text)
-    # Remove English/Vietnamese parenthetical glosses inserted by machine translator
     text = re.sub(r"\([A-Za-zÀ-ỹ0-9\s,\-\'\"]+\)", "", text)
     for k, v in KO_REPLACEMENTS.items():
         text = re.sub(re.escape(k), v, text, flags=re.IGNORECASE)
@@ -161,8 +179,29 @@ def save_config(cfg: dict) -> dict:
     return merged
 
 
+def load_dotenv_key() -> str:
+    """Load GEMINI_API_KEY from local .env file if present (gitignored)."""
+    env_file = os.path.join(BASE_DIR, ".env")
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        if k.strip() in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+                            return v.strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return ""
+
+
 def load_gemini_api_key() -> str:
-    env_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    env_key = (
+        os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+        or load_dotenv_key()
+    )
     if env_key:
         return env_key
     try:
@@ -176,23 +215,8 @@ def load_gemini_api_key() -> str:
                 .get("env", {})
                 .get("GEMINI_API_KEY")
             )
-            if key:
+            if key and not str(key).startswith("${"):
                 return key
-    except Exception:
-        pass
-    try:
-        oc_path = os.path.expanduser("~/.openclaw/openclaw.json")
-        if os.path.exists(oc_path):
-            with open(oc_path, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-            return (
-                cfg.get("plugins", {})
-                .get("entries", {})
-                .get("google", {})
-                .get("config", {})
-                .get("webSearch", {})
-                .get("apiKey", "")
-            )
     except Exception:
         pass
     return ""
@@ -210,7 +234,8 @@ class GeminiMCPClient:
         if self.api_key:
             env["GEMINI_API_KEY"] = self.api_key
             env["GOOGLE_API_KEY"] = self.api_key
-        env["PATH"] = f"{NODE_BIN_DIR}:{env.get('PATH', '')}"
+        if NODE_BIN_DIR:
+            env["PATH"] = f"{NODE_BIN_DIR}:{env.get('PATH', '')}"
 
         proc = subprocess.Popen(
             [self.command],
@@ -228,7 +253,7 @@ class GeminiMCPClient:
                 "params": {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {"name": "vietnam-news-dashboard", "version": "1.2.0"},
+                    "clientInfo": {"name": "vietnam-news-dashboard", "version": "1.2.1"},
                 },
             }
             proc.stdin.write(json.dumps(init_req) + "\n")
@@ -375,7 +400,6 @@ def parse_feed_or_html(source_cfg: dict, limit: int = 6) -> list:
     with urllib.request.urlopen(req, timeout=8) as resp:
         raw_bytes = resp.read()
 
-    # Try RSS / Atom XML first
     try:
         root = ET.fromstring(raw_bytes)
         items = root.findall(".//item")
@@ -429,7 +453,6 @@ def parse_feed_or_html(source_cfg: dict, limit: int = 6) -> list:
     except Exception:
         pass
 
-    # Fallback: HTML page headline scraping if user entered a normal web page URL
     html_text = raw_bytes.decode("utf-8", errors="ignore")
     parsed_items = []
     matches = re.findall(
